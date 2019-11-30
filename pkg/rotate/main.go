@@ -13,7 +13,12 @@ type Source struct {
 
 // Evacuate moves original log to temporary storage and wait owner to release handle to the file.
 func (source *Source) Evacuate() (*Temp, error) {
-	temp := &Temp{}
+	var temp *Temp
+	notifyErr := source.owner.NotifyRelease(source.file)
+	if notifyErr != nil {
+		return temp, notifyErr
+	}
+	temp = &Temp{}
 	return temp, nil
 }
 
@@ -37,5 +42,13 @@ func (archive *Archive) Finalize() error {
 
 // RunRotate
 func RunRotate(src *Source) error {
-	return nil
+	temp, everr := src.Evacuate()
+	if everr != nil {
+		return everr
+	}
+	archive, cmerr := temp.Compress()
+	if cmerr != nil {
+		return cmerr
+	}
+	return archive.Finalize()
 }

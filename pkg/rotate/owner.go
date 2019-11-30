@@ -21,6 +21,9 @@ func (owner *ProcessOwner) NotifyRelease(file File) error {
 }
 
 func (owner *ProcessOwner) Released(file File) (bool, error) {
-
-	return false, nil
+	procs, err := Lsof(file.AbsolutePath())
+	if err != nil {
+		return false, err
+	}
+	return len(procs) < 1, nil
 }

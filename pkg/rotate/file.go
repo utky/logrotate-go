@@ -5,6 +5,7 @@ import "os"
 // File is a abstracted interface to manipulate file.
 type File interface {
 	Id() string
+	AbsolutePath() string
 	MoveTo(storage Storage) error
 }
 

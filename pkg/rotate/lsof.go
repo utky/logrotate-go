@@ -22,6 +22,7 @@ type LsofOut struct {
 	Name    string
 }
 
+// ParseLsofOutput read lines and build structured output of lsof.
 func ParseLsofOutput(lines []string) ([]LsofOut, error) {
 	var outputList []LsofOut
 	for i, line := range lines {
@@ -70,8 +71,10 @@ func ParseLsofOutput(lines []string) ([]LsofOut, error) {
 }
 
 // Lsof spawns lsof and parse output
-func Lsof(path string) ([]LsofOut, error) {
-	cmd := exec.Command("lsof", "-w", path)
+func Lsof(path string, opts ...string) ([]LsofOut, error) {
+	arguments := []string{"-w", path}
+	arguments = append(arguments, opts...)
+	cmd := exec.Command("lsof", arguments...)
 	out, err := cmd.Output()
 	if err != nil {
 		return make([]LsofOut, 0), err

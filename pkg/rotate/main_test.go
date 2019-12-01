@@ -3,11 +3,12 @@ package rotate
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 type DummyFile struct{}
 
-func (f *DummyFile) Id() string {
+func (f *DummyFile) ID() string {
 	return "id"
 }
 func (f *DummyFile) AbsolutePath() string {
@@ -27,12 +28,19 @@ func (this *OwnerReleaseImmediately) Released(file File) (bool, error) {
 	return true, nil
 }
 
+func testConfig() *Config {
+	config := NewConfig()
+	config.ownerReleaseTimeout = 1 * time.Second
+	config.ownerReleaseInterval = 100 * time.Millisecond
+	return config
+}
+
 func TestRotate(t *testing.T) {
-	releaseNow := &OwnerReleaseImmediately{}
+	releaseNow := []Owner{&OwnerReleaseImmediately{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:  &Base{logFile},
-		owner: releaseNow,
+		Base:   &Base{testConfig(), logFile},
+		owners: releaseNow,
 	}
 	err := RunRotate(source)
 	if err != nil {
@@ -51,11 +59,11 @@ func (this *OwnerFailNotify) Released(file File) (bool, error) {
 }
 
 func TestPreventByFailNotify(t *testing.T) {
-	prevention := &OwnerFailNotify{}
+	prevention := []Owner{&OwnerFailNotify{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:  &Base{logFile},
-		owner: prevention,
+		Base:   &Base{testConfig(), logFile},
+		owners: prevention,
 	}
 	err := RunRotate(source)
 	if err == nil {
@@ -77,14 +85,27 @@ func (this *OwnerDoesNotRelease) Released(file File) (bool, error) {
 }
 
 func TestPreventByReleaseTimeout(t *testing.T) {
-	prevention := &OwnerDoesNotRelease{}
+	prevention := []Owner{&OwnerDoesNotRelease{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:  &Base{logFile},
-		owner: prevention,
+		Base:   &Base{testConfig(), logFile},
+		owners: prevention,
 	}
 	err := RunRotate(source)
 	if err == nil {
 		t.Errorf("Accidentally succeeded")
+	}
+}
+
+func TestWaitOwnerRelease(t *testing.T) {
+	prevention := []Owner{&OwnerDoesNotRelease{}}
+	logFile := &DummyFile{}
+	source := &Source{
+		Base:   &Base{testConfig(), logFile},
+		owners: prevention,
+	}
+	err := WaitOwnerRelease(source)
+	if err == nil {
+		t.Errorf("Timeout was not happened")
 	}
 }

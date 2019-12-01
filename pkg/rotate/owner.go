@@ -57,3 +57,14 @@ func AllOwnersReleased(owners []Owner, file File) (bool, error) {
 	}
 	return released, err
 }
+
+// NewProcOwnerList transform process list to owner list.
+func NewProcOwnerList(procs []*os.Process) []Owner {
+	owners := make([]Owner, 0)
+	for _, proc := range procs {
+		owners = append(owners, &ProcessOwner{
+			process: proc,
+		})
+	}
+	return owners
+}

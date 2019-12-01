@@ -6,15 +6,18 @@ import (
 	"time"
 )
 
-type DummyFile struct{}
+type DummyFile struct {
+	p string
+}
 
-func (f *DummyFile) ID() string {
-	return "id"
+func (f *DummyFile) Basename() string {
+	return "test"
 }
 func (f *DummyFile) AbsolutePath() string {
-	return "id"
+	return "/tmp/rotate/test"
 }
-func (f *DummyFile) MoveTo(storage Storage) error {
+func (f *DummyFile) MoveTo(dest string) error {
+	f.p = dest
 	return nil
 }
 
@@ -29,9 +32,9 @@ func (this *OwnerReleaseImmediately) Released(file File) (bool, error) {
 }
 
 func testConfig() *Config {
-	config := NewConfig()
-	config.ownerReleaseTimeout = 1 * time.Second
-	config.ownerReleaseInterval = 100 * time.Millisecond
+	config := DefaultConfig()
+	config.OwnerReleaseTimeout = 2 * time.Millisecond
+	config.OwnerReleaseInterval = 1 * time.Millisecond
 	return config
 }
 

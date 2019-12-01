@@ -3,7 +3,11 @@ package rotate
 import (
 	"fmt"
 	"time"
+
+	"github.com/utky/logproc-go/pkg/log"
 )
+
+var logger = log.New()
 
 // Base is common structure which all stages of log should have.
 type Base struct {
@@ -21,8 +25,8 @@ type Source struct {
 func WaitOwnerRelease(source *Source) error {
 	var err error
 	err = nil
-	timeoutCh := time.After(source.config.ownerReleaseTimeout)
-	intervalCh := time.Tick(source.config.ownerReleaseInterval)
+	timeoutCh := time.After(source.config.OwnerReleaseTimeout)
+	intervalCh := time.Tick(source.config.OwnerReleaseInterval)
 	for wait := true; wait; {
 		select {
 		case <-intervalCh:
@@ -31,9 +35,12 @@ func WaitOwnerRelease(source *Source) error {
 				wait = false
 				err = rlsErr
 			}
+			if rlsErr != nil {
+				logger.Warnf("Failed to query owner of file", log.Fields{"error": rlsErr})
+			}
 		case <-timeoutCh:
 			wait = false
-			err = fmt.Errorf("Timedout to wait file handle released")
+			err = fmt.Errorf("Timedout to wait file handle released: %s", source.file.AbsolutePath())
 		default:
 		}
 	}
@@ -47,11 +54,16 @@ func (source *Source) Evacuate() (*Temp, error) {
 	if notifyErr != nil {
 		return temp, notifyErr
 	}
+	logger.Info("Notified signal to release handle", log.Fields{"file": source.file.AbsolutePath()})
+
 	rlsErr := WaitOwnerRelease(source)
 	if rlsErr != nil {
 		return temp, rlsErr
 	}
-	temp = &Temp{}
+	logger.Info("Completed to wait release handle", log.Fields{"file": source.file.AbsolutePath()})
+	temp = &Temp{
+		Base: source.Base,
+	}
 	return temp, nil
 }
 
@@ -62,7 +74,9 @@ type Temp struct {
 
 // Compress archives current temp file.
 func (temp *Temp) Compress() (*Archive, error) {
-	archive := &Archive{}
+	archive := &Archive{
+		Base: temp.Base,
+	}
 	return archive, nil
 }
 
@@ -77,14 +91,64 @@ func (archive *Archive) Finalize() error {
 }
 
 // RunRotate runs log processing pipeline
-func RunRotate(src *Source) error {
-	temp, everr := src.Evacuate()
-	if everr != nil {
-		return everr
+func RunRotate(source *Source) error {
+
+	logger.Info("Start evacuate",
+		log.Fields{
+			"source": source.file.Basename(),
+		})
+	timeStartEvacuate := time.Now()
+	temp, evErr := source.Evacuate()
+	timeEndEvacuate := time.Now()
+	logger.Info("End evacuate",
+		log.Fields{
+			"file":    source.file.Basename(),
+			"elapsed": timeEndEvacuate.Sub(timeStartEvacuate),
+		})
+	if evErr != nil {
+		return evErr
 	}
-	archive, cmerr := temp.Compress()
-	if cmerr != nil {
-		return cmerr
+
+	logger.Info("Start compress",
+		log.Fields{
+			"file": temp.file.Basename(),
+		})
+	timeStartArchive := time.Now()
+	archive, cmErr := temp.Compress()
+	timeEndArchive := time.Now()
+	logger.Info("End evacuate",
+		log.Fields{
+			"file":    temp.file.Basename(),
+			"elapsed": timeEndArchive.Sub(timeStartArchive),
+		})
+	if cmErr != nil {
+		return cmErr
 	}
-	return archive.Finalize()
+
+	logger.Info("Start finalize",
+		log.Fields{
+			"file": archive.file.Basename(),
+		})
+	timeStartFinalize := time.Now()
+	fnErr := archive.Finalize()
+	timeEndFinalize := time.Now()
+	logger.Info("End finalize",
+		log.Fields{
+			"file":    archive.file.Basename(),
+			"elapsed": timeEndFinalize.Sub(timeStartFinalize),
+		})
+	return fnErr
+}
+
+// NewSource creates source
+func NewSource(config *Config, file File, owners []Owner) *Source {
+	base := &Base{
+		config: config,
+		file:   file,
+	}
+	source := &Source{
+		Base:   base,
+		owners: owners,
+	}
+	return source
 }

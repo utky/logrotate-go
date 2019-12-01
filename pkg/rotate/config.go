@@ -12,7 +12,7 @@ type Config struct {
 	FinalizeCommands     []string
 }
 
-// NewConfig build config with default parameters.
+// DefaultConfig build config with default parameters.
 func DefaultConfig() *Config {
 	config := &Config{
 		OwnerProcName:        "",
@@ -25,6 +25,7 @@ func DefaultConfig() *Config {
 	return config
 }
 
+// NewConfig builds configuration.
 func NewConfig(
 	owner string,
 	ownerReleaseTimeout time.Duration,

@@ -10,13 +10,16 @@ import (
 // Pgrep runs pgrep and returns list of pid.
 func Pgrep(pattern string) ([]int, error) {
 	pids := make([]int, 0)
-	cmd := exec.Command("pgrep", pattern)
+	cmd := exec.Command("pgrep", "-f", pattern)
 	outBytes, cmdErr := cmd.Output()
 	if cmdErr != nil {
 		return pids, cmdErr
 	}
 	pidStrs := strings.Split(string(outBytes), "\n")
 	for _, pidStr := range pidStrs {
+		if pidStr == "" {
+			continue
+		}
 		pid, convErr := strconv.Atoi(pidStr)
 		if convErr != nil {
 			return pids, convErr

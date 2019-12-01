@@ -17,6 +17,7 @@ type OsFile struct {
 	path string
 }
 
+// NewOsFile creates file backed by OS file system.
 func NewOsFile(path string) (*OsFile, error) {
 	var osFile *OsFile
 	apath, err := filepath.Abs(path)
@@ -32,9 +33,11 @@ func NewOsFile(path string) (*OsFile, error) {
 func (f *OsFile) Basename() string {
 	return filepath.Base(f.path)
 }
+
 func (f *OsFile) AbsolutePath() string {
 	return f.path
 }
+
 func (f *OsFile) MoveTo(dest string) error {
 	return os.Rename(f.AbsolutePath(), dest)
 }

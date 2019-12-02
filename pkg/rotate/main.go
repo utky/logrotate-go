@@ -2,8 +2,10 @@ package rotate
 
 import (
 	"fmt"
+	"os/exec"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/utky/logproc-go/pkg/log"
 )
 
@@ -18,6 +20,16 @@ type Base struct {
 type Source struct {
 	*Base
 	owners []Owner
+}
+
+// Temp is a temporary state of rotation.
+type Temp struct {
+	*Base
+}
+
+// Archive is compressed file
+type Archive struct {
+	*Base
 }
 
 // WaitOwnerRelease wait with check interval and timeout that all owner release handle of the file.
@@ -66,11 +78,6 @@ func (source *Source) Evacuate() (*Temp, error) {
 	return temp, nil
 }
 
-// Temp is a temporary state of rotation.
-type Temp struct {
-	*Base
-}
-
 // Compress archives current temp file.
 func (temp *Temp) Compress() (*Archive, error) {
 	archive := &Archive{
@@ -79,13 +86,35 @@ func (temp *Temp) Compress() (*Archive, error) {
 	return archive, nil
 }
 
-// Archive is compressed file
-type Archive struct {
-	*Base
-}
-
 // Finalize runs post-process action.
 func (archive *Archive) Finalize() error {
+	for _, cmdStr := range archive.config.FinalizeCommands {
+		timeStartFinalize := time.Now()
+		cmd := exec.Command("sh", "-c", cmdStr)
+		outputBytes, cmdErr := cmd.CombinedOutput()
+		timeEndFinalize := time.Now()
+		elapsedFinalize := timeEndFinalize.Sub(timeStartFinalize)
+		output := string(outputBytes)
+		if cmdErr != nil {
+			archive.logger.Errorf(
+				"Finalize failed",
+				log.Fields{
+					"output":  output,
+					"cmd":     cmdStr,
+					"elapsed": elapsedFinalize,
+				})
+			return errors.Wrap(
+				cmdErr,
+				fmt.Sprintf("Finalize failed with stdout and stderr: %s", output))
+		}
+		archive.logger.Infof(
+			"Finalize succeeded",
+			log.Fields{
+				"output":  output,
+				"cmd":     cmdStr,
+				"elapsed": elapsedFinalize,
+			})
+	}
 	return nil
 }
 

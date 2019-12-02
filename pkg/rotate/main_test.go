@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/utky/logproc-go/pkg/log"
 )
 
 type DummyFile struct {
@@ -42,7 +44,7 @@ func TestRotate(t *testing.T) {
 	releaseNow := []Owner{&OwnerReleaseImmediately{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:   &Base{testConfig(), logFile},
+		Base:   &Base{testConfig(), logFile, log.New()},
 		owners: releaseNow,
 	}
 	err := RunRotate(source)
@@ -65,7 +67,7 @@ func TestPreventByFailNotify(t *testing.T) {
 	prevention := []Owner{&OwnerFailNotify{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:   &Base{testConfig(), logFile},
+		Base:   &Base{testConfig(), logFile, log.New()},
 		owners: prevention,
 	}
 	err := RunRotate(source)
@@ -91,7 +93,7 @@ func TestPreventByReleaseTimeout(t *testing.T) {
 	prevention := []Owner{&OwnerDoesNotRelease{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:   &Base{testConfig(), logFile},
+		Base:   &Base{testConfig(), logFile, log.New()},
 		owners: prevention,
 	}
 	err := RunRotate(source)
@@ -104,7 +106,7 @@ func TestWaitOwnerRelease(t *testing.T) {
 	prevention := []Owner{&OwnerDoesNotRelease{}}
 	logFile := &DummyFile{}
 	source := &Source{
-		Base:   &Base{testConfig(), logFile},
+		Base:   &Base{testConfig(), logFile, log.New()},
 		owners: prevention,
 	}
 	err := WaitOwnerRelease(source)

@@ -7,12 +7,11 @@ import (
 	"github.com/utky/logproc-go/pkg/log"
 )
 
-var logger = log.New()
-
 // Base is common structure which all stages of log should have.
 type Base struct {
 	config *Config
 	file   File
+	logger *log.Logger
 }
 
 // Source is a original file before rotated.
@@ -36,7 +35,7 @@ func WaitOwnerRelease(source *Source) error {
 				err = rlsErr
 			}
 			if rlsErr != nil {
-				logger.Warnf("Failed to query owner of file", log.Fields{"error": rlsErr})
+				source.logger.Warnf("Failed to query owner of file", log.Fields{"error": rlsErr})
 			}
 		case <-timeoutCh:
 			wait = false
@@ -54,13 +53,13 @@ func (source *Source) Evacuate() (*Temp, error) {
 	if notifyErr != nil {
 		return temp, notifyErr
 	}
-	logger.Info("Notified signal to release handle", log.Fields{"file": source.file.AbsolutePath()})
+	source.logger.Info("Notified signal to release handle")
 
 	rlsErr := WaitOwnerRelease(source)
 	if rlsErr != nil {
 		return temp, rlsErr
 	}
-	logger.Info("Completed to wait release handle", log.Fields{"file": source.file.AbsolutePath()})
+	source.logger.Info("Completed to wait release handle")
 	temp = &Temp{
 		Base: source.Base,
 	}
@@ -93,14 +92,14 @@ func (archive *Archive) Finalize() error {
 // RunRotate runs log processing pipeline
 func RunRotate(source *Source) error {
 
-	logger.Info("Start evacuate",
+	source.logger.Info("Start evacuate",
 		log.Fields{
 			"source": source.file.Basename(),
 		})
 	timeStartEvacuate := time.Now()
 	temp, evErr := source.Evacuate()
 	timeEndEvacuate := time.Now()
-	logger.Info("End evacuate",
+	source.logger.Info("End evacuate",
 		log.Fields{
 			"file":    source.file.Basename(),
 			"elapsed": timeEndEvacuate.Sub(timeStartEvacuate),
@@ -109,14 +108,14 @@ func RunRotate(source *Source) error {
 		return evErr
 	}
 
-	logger.Info("Start compress",
+	temp.logger.Info("Start compress",
 		log.Fields{
 			"file": temp.file.Basename(),
 		})
 	timeStartArchive := time.Now()
 	archive, cmErr := temp.Compress()
 	timeEndArchive := time.Now()
-	logger.Info("End evacuate",
+	temp.logger.Info("End evacuate",
 		log.Fields{
 			"file":    temp.file.Basename(),
 			"elapsed": timeEndArchive.Sub(timeStartArchive),
@@ -125,14 +124,14 @@ func RunRotate(source *Source) error {
 		return cmErr
 	}
 
-	logger.Info("Start finalize",
+	archive.logger.Info("Start finalize",
 		log.Fields{
 			"file": archive.file.Basename(),
 		})
 	timeStartFinalize := time.Now()
 	fnErr := archive.Finalize()
 	timeEndFinalize := time.Now()
-	logger.Info("End finalize",
+	archive.logger.Info("End finalize",
 		log.Fields{
 			"file":    archive.file.Basename(),
 			"elapsed": timeEndFinalize.Sub(timeStartFinalize),
@@ -142,9 +141,11 @@ func RunRotate(source *Source) error {
 
 // NewSource creates source
 func NewSource(config *Config, file File, owners []Owner) *Source {
+	logger := log.NewWithFields(log.Fields{"file": file.Basename})
 	base := &Base{
 		config: config,
 		file:   file,
+		logger: logger,
 	}
 	source := &Source{
 		Base:   base,

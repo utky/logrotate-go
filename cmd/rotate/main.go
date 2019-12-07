@@ -5,8 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/utky/logproc-go/pkg/core"
+	"github.com/utky/logproc-go/pkg/evacuate"
 	"github.com/utky/logproc-go/pkg/log"
-	"github.com/utky/logproc-go/pkg/rotate"
+	"github.com/utky/logproc-go/pkg/proc"
 )
 
 var logger = log.New()
@@ -22,7 +24,7 @@ func (cs *commands) Set(value string) error {
 	return nil
 }
 
-func parseOpts() (string, *rotate.Config) {
+func parseOpts() (string, *core.Config) {
 	sourceName := flag.String("src", "", "source file path to be processed")
 	owner := flag.String("owner", "", "owner process name of src")
 	ownerReleaseTimeout := flag.Duration("waitTimeout", 5*time.Minute, "timeout to wait release of owner")
@@ -32,7 +34,7 @@ func parseOpts() (string, *rotate.Config) {
 	flag.Var(&cmds, "finalize", "command to be passed to shell after rotation completed")
 	flag.Parse()
 
-	config := rotate.NewConfig(
+	config := core.NewConfig(
 		*owner,
 		*ownerReleaseTimeout,
 		*tempDirectory,
@@ -49,24 +51,24 @@ func abort(msg string, err error, exitCode int) {
 }
 
 func main() {
-	var config *rotate.Config
-	var file rotate.File
+	var config *core.Config
+	var file core.File
 
 	sourceName, config := parseOpts()
 	if sourceName == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-	file, newFileErr := rotate.NewOsFile(sourceName)
+	file, newFileErr := core.NewOsFile(sourceName)
 	if newFileErr != nil {
 		abort("Failed to resolve absolute path of src", newFileErr, 1)
 	}
-	procs, procErr := rotate.GrepProcs(config.OwnerProcName)
+	procs, procErr := proc.GrepProcs(config.OwnerProcName)
 	if procErr != nil {
 		abort("Failed to find pid", procErr, 1)
 	}
-	source := rotate.NewSource(config, file, rotate.NewProcOwnerList(procs))
-	err := rotate.RunRotate(source)
+	source := evacuate.NewSource(config, file, evacuate.NewProcOwnerList(procs))
+	err := evacuate.Run(source)
 	if err != nil {
 		abort("Failed to rotate log", err, 1)
 	}

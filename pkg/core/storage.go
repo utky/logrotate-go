@@ -1,4 +1,4 @@
-package rotate
+package core
 
 import "os"
 

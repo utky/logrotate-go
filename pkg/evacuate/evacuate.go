@@ -62,7 +62,8 @@ func (source *Source) Evacuate() error {
 	return nil
 }
 
-func evacuateSource(source *Source) error {
+// RunWith moves file Source to temp dir.
+func RunWith(source *Source) error {
 	source.Logger.Info("Start evacuate",
 		log.Fields{
 			"source": source.File.Base(),
@@ -95,7 +96,7 @@ func Run(config *core.Config) (map[SourceID]error, error) {
 	}
 
 	for _, source := range sources {
-		evacErr := evacuateSource(source)
+		evacErr := RunWith(source)
 		if evacErr != nil {
 			failed[source.ID()] = evacErr
 			source.Logger.Warnf("Failed to evacuate, skipping for further action.", log.Fields{"error": evacErr})
@@ -132,12 +133,13 @@ func CollectSources(config *core.Config) ([]*Source, error) {
 	}
 
 	sources := make([]*Source, 0)
-	files, collectErr := core.CollectFiles(newFileFunc, core.Config.SourcePattern)
+	files, collectErr := core.CollectFiles(newFileFunc, config.SourcePattern)
 	if collectErr != nil {
 		return sources, collectErr
 	}
+	owners := []Owner{&ProcessOwner{config.OwnerProcName}}
 	for _, f := range files {
-		source := NewSource(config, f)
+		source := NewSource(config, f, owners)
 		sources = append(sources, source)
 	}
 	return sources, nil

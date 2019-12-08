@@ -41,14 +41,14 @@ func testConfig() *core.Config {
 	return config
 }
 
-func TestRun(t *testing.T) {
+func TestRunWith(t *testing.T) {
 	releaseNow := []Owner{&OwnerReleaseImmediately{}}
 	logFile := &DummyFile{}
 	source := &Source{
 		Entry:  &core.Entry{testConfig(), logFile, log.New()},
 		owners: releaseNow,
 	}
-	err := Run(source)
+	err := RunWith(source)
 	if err != nil {
 		t.Errorf("Failed to rotate: %s", err)
 	}
@@ -71,7 +71,7 @@ func TestPreventByFailNotify(t *testing.T) {
 		Entry:  &core.Entry{testConfig(), logFile, log.New()},
 		owners: prevention,
 	}
-	err := Run(source)
+	err := RunWith(source)
 	if err == nil {
 		t.Errorf("Accidentally succeeded")
 	}
@@ -97,7 +97,7 @@ func TestPreventByReleaseTimeout(t *testing.T) {
 		Entry:  &core.Entry{testConfig(), logFile, log.New()},
 		owners: prevention,
 	}
-	err := Run(source)
+	err := RunWith(source)
 	if err == nil {
 		t.Errorf("Accidentally succeeded")
 	}

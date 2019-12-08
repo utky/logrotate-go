@@ -31,14 +31,17 @@ func NewOsFile(path string) (*OsFile, error) {
 	return osFile, nil
 }
 
+// Base implements File interface
 func (f *OsFile) Base() string {
 	return filepath.Base(f.path)
 }
 
+// Abs implements File interface
 func (f *OsFile) Abs() string {
 	return f.path
 }
 
+// Move implements File interface
 func (f *OsFile) Move(dest string) error {
 	return os.Rename(f.Abs(), dest)
 }
@@ -65,6 +68,14 @@ func SkipFile() NewFileError {
 	return NewFileError{
 		err:  nil,
 		skip: true,
+	}
+}
+
+// Empty creates nil values of NewFileError
+func Empty() NewFileError {
+	return NewFileError{
+		err:  nil,
+		skip: false,
 	}
 }
 

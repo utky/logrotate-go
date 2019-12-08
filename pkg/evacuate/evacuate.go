@@ -62,9 +62,7 @@ func (source *Source) Evacuate() error {
 	return nil
 }
 
-// Run runs log processing pipeline
-func Run(source *Source) error {
-
+func evacuateSource(source *Source) error {
 	source.Logger.Info("Start evacuate",
 		log.Fields{
 			"source": source.File.Base(),
@@ -80,6 +78,32 @@ func Run(source *Source) error {
 	return evErr
 }
 
+// SourceID identifies Source in filesystem.
+type SourceID = string
+
+// ID retrieve absolute path of source file.
+func (source *Source) ID() SourceID {
+	return source.File.Abs()
+}
+
+// Run runs log processing pipeline
+func Run(config *core.Config) (map[SourceID]error, error) {
+	failed := make(map[SourceID]error)
+	sources, collectErr := CollectSources(config)
+	if collectErr != nil {
+		return failed, collectErr
+	}
+
+	for _, source := range sources {
+		evacErr := evacuateSource(source)
+		if evacErr != nil {
+			failed[source.ID()] = evacErr
+			source.Logger.Warnf("Failed to evacuate, skipping for further action.", log.Fields{"error": evacErr})
+		}
+	}
+	return failed, nil
+}
+
 // NewSource creates source
 func NewSource(config *core.Config, file core.File, owners []Owner) *Source {
 	logger := log.NewWithFields(log.Fields{"file": file.Base()})
@@ -93,4 +117,29 @@ func NewSource(config *core.Config, file core.File, owners []Owner) *Source {
 		owners: owners,
 	}
 	return source
+}
+
+// CollectSources read path from config and walk there then build Source from files in that path.
+func CollectSources(config *core.Config) ([]*Source, error) {
+
+	newFileFunc := func(path string) (core.File, core.NewFileError) {
+		var file core.File
+		osfile, newFileErr := core.NewOsFile(path)
+		if newFileErr != nil {
+			return file, core.FailNewFile(newFileErr)
+		}
+		return osfile, core.Empty()
+	}
+
+	sources := make([]*Source, 0)
+	files, collectErr := core.CollectFiles(newFileFunc, core.Config.SourcePattern)
+	if collectErr != nil {
+		return sources, collectErr
+	}
+	for _, f := range files {
+		source := NewSource(config, f)
+		sources = append(sources, source)
+	}
+	return sources, nil
+
 }

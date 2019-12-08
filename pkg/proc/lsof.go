@@ -12,7 +12,7 @@ import (
 //   COMMAND    PID      USER   FD   TYPE DEVICE SIZE/OFF    NODE NAM
 type LsofOut struct {
 	Command string
-	Pid     int64
+	Pid     int
 	User    string
 	Fd      string
 	Typ     string
@@ -46,7 +46,7 @@ func ParseLsofOutput(lines []string) ([]LsofOut, error) {
 
 		pid, pderr := strconv.ParseInt(fields[1], 10, 64)
 		if pderr != nil {
-			return outputList, fmt.Errorf("Cannot parse to uint64 as pid at line:%d actual %s", i, fields[1])
+			return outputList, fmt.Errorf("Cannot parse to int as pid at line:%d actual %s", i, fields[1])
 		}
 
 		inode, inerr := strconv.ParseInt(fields[7], 10, 64)
@@ -56,7 +56,7 @@ func ParseLsofOutput(lines []string) ([]LsofOut, error) {
 
 		lsofOut := LsofOut{
 			Command: fields[0],
-			Pid:     pid,
+			Pid:     int(pid),
 			User:    fields[2],
 			Fd:      fields[3],
 			Typ:     fields[4],

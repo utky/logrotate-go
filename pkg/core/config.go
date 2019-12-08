@@ -7,6 +7,7 @@ type Config struct {
 	OwnerProcName        string
 	OwnerReleaseInterval time.Duration
 	OwnerReleaseTimeout  time.Duration
+	SourcePattern        string
 	TempStorage          string
 	ArchiveStorage       string
 	FinalizeCommands     []string
@@ -18,6 +19,7 @@ func DefaultConfig() *Config {
 		OwnerProcName:        "",
 		OwnerReleaseInterval: 1 * time.Second,
 		OwnerReleaseTimeout:  5 * time.Minute,
+		SourcePattern:        "/tmp/rotate/source",
 		TempStorage:          "/tmp/rotate/tmp",
 		ArchiveStorage:       "/tmp/rotate/archive",
 		FinalizeCommands:     []string{},

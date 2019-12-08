@@ -1,7 +1,8 @@
 package evacuate
 
 import (
-	"os"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/utky/logproc-go/pkg/core"
@@ -17,18 +18,38 @@ type Owner interface {
 
 // ProcessOwner is a owner represented by process.
 type ProcessOwner struct {
-	process *os.Process
+	namePattern string
 }
 
 // NotifyRelease sends SIGHUP to the process.
 func (owner *ProcessOwner) NotifyRelease(file core.File) error {
-	return owner.process.Signal(syscall.SIGHUP)
+	procs, grepErr := proc.GrepProcs(owner.namePattern)
+	if grepErr != nil {
+		return grepErr
+	}
+	for _, p := range procs {
+		if sigErr := p.Signal(syscall.SIGHUP); sigErr != nil {
+			return sigErr
+		}
+	}
+	return nil
 }
 
 // Released queries if specified file is owned by the process
 func (owner *ProcessOwner) Released(file core.File) (bool, error) {
-	opts := []string{"-p", string(owner.process.Pid)}
-	procs, err := proc.Lsof(file.Base(), opts...)
+	owners, grepErr := proc.GrepProcs(owner.namePattern)
+	if grepErr != nil {
+		return false, grepErr
+	}
+
+	ownerPids := make([]string, len(owners))
+	for i, o := range owners {
+		ownerPids[i] = strconv.Itoa(o.Pid)
+	}
+	cvPids := strings.Join(ownerPids, ",")
+
+	opts := []string{"-p", cvPids}
+	procs, err := proc.Lsof(file.Abs(), opts...)
 	if err != nil {
 		return false, err
 	}
@@ -61,13 +82,9 @@ func AllOwnersReleased(owners []Owner, file core.File) (bool, error) {
 	return released, err
 }
 
-// NewProcOwnerList transform process list to owner list.
-func NewProcOwnerList(procs []*os.Process) []Owner {
-	owners := make([]Owner, 0)
-	for _, proc := range procs {
-		owners = append(owners, &ProcessOwner{
-			process: proc,
-		})
+// NewProcOwner transform process list to owner list.
+func NewProcOwner(config *core.Config) Owner {
+	return &ProcessOwner{
+		namePattern: config.OwnerProcName,
 	}
-	return owners
 }

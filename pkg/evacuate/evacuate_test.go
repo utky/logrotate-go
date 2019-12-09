@@ -2,6 +2,8 @@ package evacuate
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -114,4 +116,38 @@ func TestWaitOwnerRelease(t *testing.T) {
 	if err == nil {
 		t.Errorf("Timeout was not happened")
 	}
+}
+
+func TestRun(t *testing.T) {
+	d := core.CreateTemp(t)
+	defer os.RemoveAll(d)
+
+	source := path.Join(d, "source")
+	if err := os.MkdirAll(source, 0777); err != nil {
+		t.Errorf("Failed to create source dir: %s", err)
+	}
+	temp := path.Join(d, "temp")
+	if err := os.MkdirAll(temp, 0777); err != nil {
+		t.Errorf("Failed to create temp dir: %s", err)
+	}
+	core.PrepareFile(t, source, "test.log", "TestRun")
+
+	config := core.DefaultConfig()
+	config.SourcePattern = path.Join(source, "*")
+	config.TempStorage = temp
+
+	failed, runErr := Run(config)
+	if runErr != nil {
+		t.Errorf("Failed to evacuate: %s", runErr)
+	}
+	if len(failed) > 0 {
+		t.Errorf("Failed entry exists: %s", failed)
+	}
+
+	if _, absentErr := os.Stat(path.Join(temp, "test.log")); os.IsNotExist(absentErr) {
+		t.Errorf("Cannot find moved file.: %s", absentErr)
+	}
+	//if _, absentErr := os.Stat(path.Join(source, "test.log")); !os.IsNotExist(absentErr) {
+	//	t.Errorf("Cannot find ioved file.: %s", absentErr)
+	//}
 }
